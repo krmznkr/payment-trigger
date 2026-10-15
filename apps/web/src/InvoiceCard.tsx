@@ -1,24 +1,53 @@
 import type { ReactNode } from "react"
+import type { InvoiceStatus } from "@payment-trigger/domain/Models"
 import type { InvoiceView } from "@payment-trigger/domain/Run"
 import { MarkOverdueButton } from "./DemoControls.tsx"
 import { explainInvoice, explainRoutingError, outcomeLabel, type Tone } from "./explain.ts"
 import { formatInstant, invoiceAmount } from "./format.ts"
+import { Card, Label } from "./ui.tsx"
 
-const toneStyles: Record<Tone, string> = {
-  trigger: "border-emerald-300 bg-emerald-50 text-emerald-900",
-  none: "border-stone-200 bg-stone-50 text-stone-700",
-  flag: "border-amber-300 bg-amber-50 text-amber-900",
+const statusBadge: Record<InvoiceStatus, string> = {
+  open: "bg-sky-50 text-sky-700 ring-sky-600/20",
+  overdue: "bg-amber-50 text-amber-800 ring-amber-600/25",
+  paid: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+  void: "bg-slate-100 text-slate-600 ring-slate-500/20",
 }
 
-const Label = ({ children }: { readonly children: ReactNode }) => (
-  <h4 className="text-xs font-semibold tracking-wide text-stone-500 uppercase">{children}</h4>
+const verdictStyles: Record<Tone, { readonly panel: string; readonly dot: string }> = {
+  trigger: { panel: "border-emerald-500 bg-emerald-50/60", dot: "bg-emerald-500" },
+  none: { panel: "border-slate-300 bg-slate-50", dot: "bg-slate-400" },
+  flag: { panel: "border-amber-500 bg-amber-50/70", dot: "bg-amber-500" },
+}
+
+const StatusBadge = ({ status }: { readonly status: InvoiceStatus }) => (
+  <span
+    className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium capitalize ring-1 ring-inset ${statusBadge[status]}`}
+  >
+    {status}
+  </span>
+)
+
+const Connector = () => (
+  <svg
+    aria-hidden
+    viewBox="0 0 16 16"
+    className="size-4 shrink-0 rotate-90 text-slate-400 md:rotate-0"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.75"
+  >
+    <path d="M3 8h10m-4-4 4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
 )
 
 function Routing({ view }: { readonly view: InvoiceView }) {
   const routing = view.routing
   if (routing._tag !== "Settlement") {
     return (
-      <p role="alert" className="text-sm text-red-700">
+      <p
+        role="alert"
+        className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800 ring-1 ring-rose-600/20 ring-inset"
+      >
         Cannot route: {explainRoutingError(routing)}
       </p>
     )
@@ -41,21 +70,37 @@ function Routing({ view }: { readonly view: InvoiceView }) {
     },
   ]
   return (
-    <ol className="flex flex-wrap items-stretch gap-2 text-sm" aria-label="Settlement route">
-      {steps.map((step, index) => (
-        <li key={step.kind} className="flex items-center gap-2">
-          {index > 0 && (
-            <span aria-hidden className="text-stone-400">
-              →
-            </span>
-          )}
-          <div className="min-w-0 rounded border border-stone-200 bg-white px-3 py-1.5">
-            <div className="text-xs text-stone-500">{step.kind}</div>
-            <div className="font-medium">{step.title}</div>
-            <div className="font-mono text-xs break-all text-stone-500">{step.sub}</div>
-          </div>
-        </li>
-      ))}
+    <ol
+      className="flex flex-col gap-1.5 md:flex-row md:items-stretch md:gap-2"
+      aria-label="Settlement route"
+    >
+      {steps.map((step, index) => {
+        const destination = index === steps.length - 1
+        return (
+          <li
+            key={step.kind}
+            className="flex min-w-0 flex-col items-start gap-1.5 md:flex-row md:items-center md:gap-2"
+          >
+            {index > 0 && <Connector />}
+            <div
+              className={`w-full min-w-0 self-stretch rounded-lg px-3 py-2 ring-1 ring-inset md:h-full ${destination ? "bg-slate-900 text-white ring-slate-900" : "bg-white ring-slate-200"}`}
+            >
+              <div
+                className={`text-[11px] font-medium tracking-wide uppercase ${destination ? "text-slate-300" : "text-slate-500"}`}
+              >
+                {destination ? "Settles into · " : ""}
+                {step.kind}
+              </div>
+              <div className="text-sm font-medium">{step.title}</div>
+              <div
+                className={`font-mono text-xs wrap-break-word ${destination ? "text-slate-300" : "text-slate-500"}`}
+              >
+                {step.sub}
+              </div>
+            </div>
+          </li>
+        )
+      })}
     </ol>
   )
 }
@@ -64,106 +109,131 @@ function Link({ view }: { readonly view: InvoiceView }) {
   const link = view.link
   if (link === null) {
     return (
-      <p className="text-sm text-stone-600">
+      <p className="text-sm text-slate-600">
         {view.decision._tag === "Triggered" ? "None yet. Run the trigger to create it." : "None."}
       </p>
     )
   }
+  const rows: ReadonlyArray<readonly [string, ReactNode, boolean]> = [
+    ["State", link.state, false],
+    ["URL", link.url ?? "—", true],
+    ["Stripe id", link.stripePaymentLinkId ?? "—", true],
+    ["Settles into", `bank account #${link.params.settlementBankAccountId}`, false],
+    ["Triggered by", `history #${link.triggerChangeId}`, false],
+    ["Idempotency key", link.idempotencyKey, true],
+    ["Created", link.createdAt === null ? "—" : formatInstant(link.createdAt), false],
+  ]
   return (
     <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
-      <dt className="text-stone-500">State</dt>
-      <dd>{link.state}</dd>
-      <dt className="text-stone-500">URL</dt>
-      <dd className="font-mono break-all">{link.url ?? "—"}</dd>
-      <dt className="text-stone-500">Stripe id</dt>
-      <dd className="font-mono break-all">{link.stripePaymentLinkId ?? "—"}</dd>
-      <dt className="text-stone-500">Settles into</dt>
-      <dd>bank account #{link.params.settlementBankAccountId}</dd>
-      <dt className="text-stone-500">Triggered by</dt>
-      <dd>history #{link.triggerChangeId}</dd>
-      <dt className="text-stone-500">Idempotency key</dt>
-      <dd className="font-mono break-all">{link.idempotencyKey}</dd>
-      <dt className="text-stone-500">Created</dt>
-      <dd>{link.createdAt === null ? "—" : formatInstant(link.createdAt)}</dd>
+      {rows.map(([term, value, mono]) => (
+        <div key={term} className="contents">
+          <dt className="text-slate-500">{term}</dt>
+          <dd
+            className={mono ? "font-mono text-[13px] break-all text-slate-800" : "text-slate-800"}
+          >
+            {value}
+          </dd>
+        </div>
+      ))}
     </dl>
+  )
+}
+
+function History({ view }: { readonly view: InvoiceView }) {
+  return (
+    <ol className="space-y-1.5 text-sm">
+      {view.history.map(({ change, outcome, runId }) => (
+        <li key={change.id} className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-x-2">
+          <span className="font-mono text-xs leading-5 text-slate-400">#{change.id}</span>
+          <div className="min-w-0">
+            <div className="text-slate-800">
+              {change.oldStatus ?? "—"} →{" "}
+              <strong className="font-semibold">{change.newStatus}</strong>
+              <span className="ml-2 text-xs text-slate-500 tabular-nums">
+                {formatInstant(change.changedAt)}
+              </span>
+            </div>
+            <div className="text-xs text-slate-500">
+              {outcome === null ? (
+                <em>not handled yet</em>
+              ) : (
+                `run #${runId}: ${outcomeLabel[outcome]}`
+              )}
+            </div>
+          </div>
+        </li>
+      ))}
+    </ol>
   )
 }
 
 export function InvoiceCard({ view }: { readonly view: InvoiceView }) {
   const { invoice, customer } = view
   const verdict = explainInvoice(view)
+  const tone = verdictStyles[verdict.tone]
   return (
-    <article
-      aria-labelledby={`invoice-${invoice.id}`}
-      data-testid={`invoice-${invoice.id}`}
-      className="rounded-lg border border-stone-200 bg-white p-5 shadow-sm"
-    >
-      <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-        <h3 id={`invoice-${invoice.id}`} className="font-mono text-lg font-semibold">
-          Invoice {invoice.id}
-        </h3>
-        <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium">
-          {invoice.status}
-        </span>
-        <span className="font-medium">{invoiceAmount(invoice)}</span>
-        <span className="text-sm text-stone-600">due {invoice.dueDate}</span>
-        <span className="text-sm text-stone-600">
-          {customer === null
-            ? `customer ${invoice.customerId} missing`
-            : `${customer.fullName} · ${customer.email}`}
-          {customer !== null && (
-            <> · Stripe customer: {customer.stripeCustomerId ?? <em>none yet</em>}</>
-          )}
-        </span>
-        {invoice.status === "open" && <MarkOverdueButton invoiceId={invoice.id} />}
-      </header>
-
-      <div
-        className={`mt-4 rounded border px-4 py-3 ${toneStyles[verdict.tone]}`}
-        data-testid="verdict"
-      >
-        <p className="font-semibold">{verdict.headline}</p>
-        <p className="mt-0.5 text-sm">{verdict.reason}</p>
-      </div>
-
-      <section className="mt-4">
-        <Label>Money routes to</Label>
-        <div className="mt-2">
-          <Routing view={view} />
-        </div>
-      </section>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section className="min-w-0">
-          <Label>Payment link</Label>
-          <div className="mt-2" data-testid="payment-link">
-            <Link view={view} />
+    <article aria-labelledby={`invoice-${invoice.id}`} data-testid={`invoice-${invoice.id}`}>
+      <Card className="overflow-hidden">
+        <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-2 px-5 pt-5">
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h3 id={`invoice-${invoice.id}`} className="text-base font-semibold tracking-tight">
+                Invoice <span className="font-mono">{invoice.id}</span>
+              </h3>
+              <StatusBadge status={invoice.status} />
+              {invoice.status === "open" && <MarkOverdueButton invoiceId={invoice.id} />}
+            </div>
+            <p className="text-sm text-slate-600">
+              {customer === null
+                ? `customer ${invoice.customerId} missing`
+                : `${customer.fullName} · ${customer.email}`}
+              {customer !== null && (
+                <span className="text-slate-500">
+                  {" "}
+                  · Stripe customer:{" "}
+                  {customer.stripeCustomerId === null ? (
+                    <em>none yet</em>
+                  ) : (
+                    <span className="font-mono text-[13px]">{customer.stripeCustomerId}</span>
+                  )}
+                </span>
+              )}
+            </p>
           </div>
-        </section>
-        <section className="min-w-0 overflow-x-auto">
-          <Label>Status history</Label>
-          <table className="mt-2 w-full text-left text-sm">
-            <tbody>
-              {view.history.map(({ change, outcome, runId }) => (
-                <tr key={change.id} className="border-t border-stone-100">
-                  <td className="py-1 pr-3 font-mono text-stone-500">#{change.id}</td>
-                  <td className="pr-3">{formatInstant(change.changedAt)}</td>
-                  <td className="pr-3">
-                    {change.oldStatus ?? "—"} → <strong>{change.newStatus}</strong>
-                  </td>
-                  <td className="text-stone-600">
-                    {outcome === null ? (
-                      <em>not handled yet</em>
-                    ) : (
-                      `run #${runId}: ${outcomeLabel[outcome]}`
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
-      </div>
+          <div className="sm:text-right">
+            <div className="text-lg font-semibold tabular-nums">{invoiceAmount(invoice)}</div>
+            <div className="text-xs text-slate-500 tabular-nums">due {invoice.dueDate}</div>
+          </div>
+        </header>
+
+        <div className="space-y-4 px-5 pt-4 pb-5">
+          <div className={`rounded-lg border-l-4 px-4 py-3 ${tone.panel}`} data-testid="verdict">
+            <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <span aria-hidden className={`size-2 shrink-0 rounded-full ${tone.dot}`} />
+              {verdict.headline}
+            </p>
+            <p className="mt-1 text-sm text-slate-700">{verdict.reason}</p>
+          </div>
+
+          <section className="space-y-2">
+            <Label>Money routes to</Label>
+            <Routing view={view} />
+          </section>
+        </div>
+
+        <div className="grid gap-5 border-t border-slate-100 bg-slate-50/70 px-5 py-4 lg:grid-cols-2">
+          <section className="min-w-0 space-y-2">
+            <Label>Payment link</Label>
+            <div data-testid="payment-link">
+              <Link view={view} />
+            </div>
+          </section>
+          <section className="min-w-0 space-y-2">
+            <Label>Status history</Label>
+            <History view={view} />
+          </section>
+        </div>
+      </Card>
     </article>
   )
 }
