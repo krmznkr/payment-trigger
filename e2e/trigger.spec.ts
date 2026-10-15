@@ -24,10 +24,17 @@ const stubCalls = (page: Page) => page.getByTestId("stub-calls").getByRole("list
 const stubParams = async (call: Locator) =>
   JSON.parse(await call.locator("pre").first().innerText())
 
-/** Clicks "Run trigger" and waits for the new run to appear, not for text that may already be there. */
+/**
+ * Clicks "Run trigger", waits for the run request itself to finish, then for the new
+ * run to appear in the log (not for text that may already be there).
+ */
 const runTrigger = async (page: Page) => {
   const before = await runs(page).count()
+  const response = page.waitForResponse(
+    (candidate) => candidate.url().endsWith("/api/runs") && candidate.request().method() === "POST",
+  )
   await page.getByRole("button", { name: "Run trigger" }).click()
+  expect((await response).ok()).toBe(true)
   await expect(runs(page)).toHaveCount(before + 1)
   return runs(page).first()
 }

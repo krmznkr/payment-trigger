@@ -27,6 +27,9 @@ concern beyond a 3-hour take-home or depends on something the brief left out of 
    - A Cron Trigger and a queue (one message per invoice).
    - Select new rows in SQL instead of loading whole tables.
    - Indexes on `payment_status_history(invoice_id)`.
+   - Fewer round trips per run (batches) and Smart Placement. A run makes about 20
+     sequential D1 queries: 0.3 s from Europe, but from a US CI runner it was slow
+     enough to flake one e2e spec once (the waits are fixed; the latency isn't).
 5. **Rollouts.** Old and new Workers serve side by side for 10–30 s or more after a
    deploy. Write migrations as expand-then-contract, and consider gradual deployments
    with version checks.
