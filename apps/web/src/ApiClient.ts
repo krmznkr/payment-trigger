@@ -7,3 +7,10 @@ export class ApiClient extends AtomHttpApi.Service<ApiClient>()("payment-trigger
   httpClient: FetchHttpClient.layer,
   baseUrl: window.location.origin,
 }) {}
+
+/** Mutations invalidate this key, so the overview refetches after a run. */
+const triggerData = ["trigger-data"]
+
+export const overviewAtom = ApiClient.query("trigger", "overview", { reactivityKeys: triggerData })
+export const runAtom = ApiClient.mutation("trigger", "run")
+export const runRequest = { reactivityKeys: triggerData }

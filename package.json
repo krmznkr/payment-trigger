@@ -10,7 +10,7 @@
     "check": "oxfmt --check && oxlint --deny-warnings && bun run typecheck",
     "fmt": "oxfmt",
     "lint": "oxlint",
-    "typecheck": "tsc -p packages/domain && tsc -p apps/api && tsc -p apps/web",
+    "typecheck": "tsc -p packages/domain && tsc -p apps/api && tsc -p apps/api/test && tsc -p apps/web",
     "test": "vitest run --passWithNoTests",
     "dev": "alchemy dev --stage local",
     "deploy": "alchemy deploy --stage demo",

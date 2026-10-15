@@ -19,6 +19,18 @@
       {
         "allow": ["**/*.css"]
       }
+    ],
+    "no-underscore-dangle": [
+      "warn",
+      {
+        "allow": ["_tag"]
+      }
+    ],
+    "vitest/no-standalone-expect": [
+      "error",
+      {
+        "additionalTestBlockFunctions": ["it.effect"]
+      }
     ]
   },
   "ignorePatterns": ["node_modules", "dist", ".alchemy"]

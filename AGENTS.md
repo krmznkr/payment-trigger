@@ -161,3 +161,7 @@ prompts. Seed lives in a migration, so it's applied once per database.
 - Demo controls (mark 1003 overdue, reset): include, keep small (user).
 - Stage: `demo`. One Worker (API + assets) instead of Pages. No turborepo, no
   vite-plus. Dev-only SQLite driver allowed for SQL tests (user).
+- Browser checks: `page.bringToFront()` before screenshots, otherwise they time
+  out on a background tab.
+- `gh`: `set -a; . <main checkout>/.env; set +a` first (GH_TOKEN). Pipe output
+  through `sed` to mask the repo owner; never print the token.
