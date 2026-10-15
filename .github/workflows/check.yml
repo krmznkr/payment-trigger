@@ -21,6 +21,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.3
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+      # A hung registry fetch once stalled this step for 10 minutes; fail fast instead.
       - run: bun install --frozen-lockfile
+        timeout-minutes: 3
       - run: bun run check
       - run: bun run test
