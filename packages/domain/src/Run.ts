@@ -17,8 +17,10 @@ export const RetryableOutcome = Schema.Literals([
   "inconsistent",
   "routing_failed",
   "customer_missing",
+  "invalid_params",
   "stub_failed",
   "in_progress",
+  "changed_during_run",
 ])
 export type RetryableOutcome = typeof RetryableOutcome.Type
 
@@ -37,6 +39,8 @@ export class RunSummary extends Schema.Class<RunSummary>("RunSummary")({
   finishedAt: Schema.String,
   newChanges: Schema.Int,
   outcomes: Schema.Array(InvoiceOutcome),
+  /** Invoices with new changes left for the next run because of the per-run cap. */
+  deferredInvoices: Schema.Int,
 }) {}
 
 export class CreatedPaymentLink extends Schema.Class<CreatedPaymentLink>("CreatedPaymentLink")({
@@ -54,6 +58,7 @@ export class PaymentLink extends Schema.Class<PaymentLink>("PaymentLink")({
   stripePaymentLinkId: Schema.NullOr(Schema.String),
   url: Schema.NullOr(Schema.String),
   createdAt: Schema.NullOr(Schema.String),
+  createdByRunId: Schema.NullOr(Schema.Int),
 }) {}
 
 export class StubCall extends Schema.Class<StubCall>("StubCall")({
@@ -78,6 +83,8 @@ export class InvoiceView extends Schema.Class<InvoiceView>("InvoiceView")({
   history: Schema.Array(HistoryEntry),
   decision: TriggerDecision,
   routing: RoutingResult,
+  /** Why a routable trigger still cannot be sent (bad amount, email, missing customer). */
+  paymentInputError: Schema.NullOr(Schema.String),
   link: Schema.NullOr(PaymentLink),
 }) {}
 

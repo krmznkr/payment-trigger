@@ -3,7 +3,9 @@ import { outcomeLabel } from "./explain.ts"
 import { formatInstant } from "./format.ts"
 
 const describeOutcome = (outcome: InvoiceOutcome) =>
-  outcome.outcome === "routing_failed" || outcome.outcome === "stub_failed"
+  outcome.outcome === "routing_failed" ||
+  outcome.outcome === "stub_failed" ||
+  outcome.outcome === "invalid_params"
     ? `${outcome.invoiceId}: ${outcomeLabel[outcome.outcome]} (${outcome.detail})`
     : `${outcome.invoiceId}: ${outcomeLabel[outcome.outcome]}`
 
@@ -19,6 +21,7 @@ export function RunLog({ runs }: { readonly runs: ReadonlyArray<RunSummary> }) {
           {run.outcomes.length === 0
             ? " · nothing to do"
             : ` · ${run.outcomes.map(describeOutcome).join(", ")}`}
+          {run.deferredInvoices > 0 && ` · ${run.deferredInvoices} invoices left for the next run`}
         </li>
       ))}
     </ul>
@@ -37,16 +40,16 @@ export function StubCallLog({ calls }: { readonly calls: ReadonlyArray<StubCall>
           <p>
             <span className="font-mono">Call #{call.id}</span> · invoice {call.invoiceId} ·{" "}
             {formatInstant(call.calledAt)} · key{" "}
-            <span className="font-mono">{call.idempotencyKey}</span>
+            <span className="font-mono break-all">{call.idempotencyKey}</span>
           </p>
           <div className="mt-2 grid gap-3 md:grid-cols-2">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-stone-500">createStripePaymentLink(params)</p>
               <pre className="mt-1 overflow-x-auto rounded bg-stone-900 p-2 text-xs text-stone-100">
                 {JSON.stringify(call.params, null, 2)}
               </pre>
             </div>
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-stone-500">returned</p>
               <pre className="mt-1 overflow-x-auto rounded bg-stone-900 p-2 text-xs text-stone-100">
                 {call.error ?? JSON.stringify(call.result, null, 2)}

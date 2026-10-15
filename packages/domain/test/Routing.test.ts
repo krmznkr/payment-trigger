@@ -3,6 +3,7 @@ import { Result } from "effect"
 import { BankAccount, Customer, Invoice, LegalEntity, Park } from "../src/Models.ts"
 import {
   AmbiguousSettlementAccount,
+  InvalidPaymentLinkParams,
   LegalEntityNotFound,
   NoSettlementAccount,
   PaymentLinkParams,
@@ -105,7 +106,7 @@ describe("paymentLinkParams", () => {
   it("builds exactly the stub input for 1002", () => {
     const settlement = Result.getOrThrow(resolveSettlement(Seed.invoice(1002), seedData))
     const customer = Seed.customers.find((candidate) => candidate.id === 100) as Customer
-    expect(paymentLinkParams(Seed.invoice(1002), customer, settlement)).toEqual(
+    expect(Result.getOrThrow(paymentLinkParams(Seed.invoice(1002), customer, settlement))).toEqual(
       new PaymentLinkParams({
         invoiceId: 1002,
         amountCents: 24000,
@@ -126,15 +127,34 @@ describe("paymentLinkParams", () => {
       email: "test@example.com",
       stripeCustomerId: null,
     })
-    expect(paymentLinkParams(invoiceAt(7), customer, settlement).settlementBankAccountId).toBe(900)
+    expect(
+      Result.getOrThrow(paymentLinkParams(invoiceAt(7), customer, settlement))
+        .settlementBankAccountId,
+    ).toBe(900)
   })
 
   it("passes a missing Stripe customer through as null (1003's customer)", () => {
     const settlement = Result.getOrThrow(resolveSettlement(Seed.invoice(1003), seedData))
     const customer = Seed.customers.find((candidate) => candidate.id === 101) as Customer
-    const params = paymentLinkParams(Seed.invoice(1003), customer, settlement)
+    const params = Result.getOrThrow(paymentLinkParams(Seed.invoice(1003), customer, settlement))
     expect(params.stripeCustomerId).toBeNull()
     expect(params.customerEmail).toBe("marc.petit@example.fr")
     expect(params.settlementBankAccountId).toBe(3)
+  })
+
+  const settle = () => Result.getOrThrow(resolveSettlement(Seed.invoice(1002), seedData))
+  const anna = () => Seed.customers.find((candidate) => candidate.id === 100) as Customer
+
+  it("refuses a zero or negative amount before it reaches Stripe", () => {
+    for (const amountCents of [0, -500]) {
+      const invoice = new Invoice({ ...Seed.invoice(1002), amountCents })
+      const result = paymentLinkParams(invoice, anna(), settle())
+      expect(Result.isFailure(result) && result.failure).toBeInstanceOf(InvalidPaymentLinkParams)
+    }
+  })
+
+  it("refuses an unusable customer email", () => {
+    const customer = new Customer({ ...anna(), email: "" })
+    expect(Result.isFailure(paymentLinkParams(Seed.invoice(1002), customer, settle()))).toBe(true)
   })
 })

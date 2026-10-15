@@ -49,10 +49,10 @@ function Routing({ view }: { readonly view: InvoiceView }) {
               →
             </span>
           )}
-          <div className="rounded border border-stone-200 bg-white px-3 py-1.5">
+          <div className="min-w-0 rounded border border-stone-200 bg-white px-3 py-1.5">
             <div className="text-xs text-stone-500">{step.kind}</div>
             <div className="font-medium">{step.title}</div>
-            <div className="font-mono text-xs text-stone-500">{step.sub}</div>
+            <div className="font-mono text-xs break-all text-stone-500">{step.sub}</div>
           </div>
         </li>
       ))}
@@ -70,19 +70,19 @@ function Link({ view }: { readonly view: InvoiceView }) {
     )
   }
   return (
-    <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1 text-sm">
+    <dl className="grid grid-cols-[max-content_minmax(0,1fr)] gap-x-4 gap-y-1 text-sm">
       <dt className="text-stone-500">State</dt>
       <dd>{link.state}</dd>
       <dt className="text-stone-500">URL</dt>
       <dd className="font-mono break-all">{link.url ?? "—"}</dd>
       <dt className="text-stone-500">Stripe id</dt>
-      <dd className="font-mono">{link.stripePaymentLinkId ?? "—"}</dd>
+      <dd className="font-mono break-all">{link.stripePaymentLinkId ?? "—"}</dd>
       <dt className="text-stone-500">Settles into</dt>
       <dd>bank account #{link.params.settlementBankAccountId}</dd>
       <dt className="text-stone-500">Triggered by</dt>
       <dd>history #{link.triggerChangeId}</dd>
       <dt className="text-stone-500">Idempotency key</dt>
-      <dd className="font-mono">{link.idempotencyKey}</dd>
+      <dd className="font-mono break-all">{link.idempotencyKey}</dd>
       <dt className="text-stone-500">Created</dt>
       <dd>{link.createdAt === null ? "—" : formatInstant(link.createdAt)}</dd>
     </dl>
@@ -134,13 +134,13 @@ export function InvoiceCard({ view }: { readonly view: InvoiceView }) {
       </section>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section>
+        <section className="min-w-0">
           <Label>Payment link</Label>
           <div className="mt-2" data-testid="payment-link">
             <Link view={view} />
           </div>
         </section>
-        <section>
+        <section className="min-w-0 overflow-x-auto">
           <Label>Status history</Label>
           <table className="mt-2 w-full text-left text-sm">
             <tbody>

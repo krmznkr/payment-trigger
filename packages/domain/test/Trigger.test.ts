@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { DateTime } from "effect"
+import { DateTime, Result, Schema } from "effect"
 import { Invoice, StatusChange } from "../src/Models.ts"
 import {
   evaluateInvoice,
@@ -131,6 +131,29 @@ describe("evaluateInvoice edge cases", () => {
     )
     expect(evaluateInvoice(fixture("open"), open, dayAfter)).toEqual(
       new NeverOverdue({ status: "open", pastDue: true }),
+    )
+  })
+
+  it("orders by actual instant even when timestamps carry a UTC offset", () => {
+    // 23:30Z on Sep 1 is after 01:00+02:00 on Sep 2 (= 23:00Z on Sep 1), but sorts before it as text.
+    const first = change(1, null, "overdue", "2026-08-16T00:00:00Z")
+    const reopened = change(2, "overdue", "open", "2026-09-02T01:00:00+02:00")
+    const overdueAgain = change(3, "open", "overdue", "2026-09-01T23:30:00Z")
+    expect(evaluateInvoice(fixture("overdue"), [first, reopened, overdueAgain], asOf)).toEqual(
+      new Triggered({ change: overdueAgain }),
+    )
+  })
+
+  it("rejects a history row whose timestamp is not an instant when decoding it", () => {
+    const decoded = Schema.decodeUnknownResult(StatusChange)({
+      id: 1,
+      invoiceId: 1,
+      oldStatus: null,
+      newStatus: "open",
+      changedAt: "yesterday-ish",
+    })
+    expect(Result.isFailure(decoded) && decoded.failure.message).toContain(
+      "expected an ISO 8601 instant",
     )
   })
 })

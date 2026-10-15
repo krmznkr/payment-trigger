@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { DateTime, Option, Schema } from "effect"
 
 export const InvoiceStatus = Schema.Literals(["open", "overdue", "paid", "void"])
 export type InvoiceStatus = typeof InvoiceStatus.Type
@@ -43,10 +43,20 @@ export class Invoice extends Schema.Class<Invoice>("Invoice")({
   dueDate: Schema.String,
 }) {}
 
+/**
+ * An ISO 8601 instant, kept as the original text for display. Rows whose timestamp
+ * cannot be parsed fail loudly at the boundary instead of being ordered as text.
+ */
+export const Instant = Schema.String.check(
+  Schema.makeFilter(
+    (text: string) => Option.isSome(DateTime.make(text)) || "expected an ISO 8601 instant",
+  ),
+)
+
 export class StatusChange extends Schema.Class<StatusChange>("StatusChange")({
   id: Schema.Int,
   invoiceId: Schema.Int,
   oldStatus: Schema.NullOr(InvoiceStatus),
   newStatus: InvoiceStatus,
-  changedAt: Schema.String,
+  changedAt: Instant,
 }) {}

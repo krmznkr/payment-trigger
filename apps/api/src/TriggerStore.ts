@@ -124,22 +124,31 @@ export class TriggerStore extends Context.Service<TriggerStore>()(
                    WHERE id = ${summary.runId}`
       })
 
-      /** Idempotent: a row decided by a concurrent run keeps its first decision. */
+      /**
+       * Idempotent: a row already decided keeps its decision. Multi-row inserts, at most
+       * 20 rows (100 bound parameters, D1's limit) per statement, to save D1 queries.
+       */
       const recordDecisions = Effect.fn("TriggerStore.recordDecisions")(function* (
         decisions: ReadonlyArray<Decision>,
         decidedAt: string,
       ) {
-        for (const decision of decisions) {
-          yield* sql`INSERT INTO trigger_decisions (change_id, invoice_id, outcome, run_id, decided_at)
-                     VALUES (${decision.changeId}, ${decision.invoiceId}, ${decision.outcome},
-                             ${decision.runId}, ${decidedAt})
-                     ON CONFLICT (change_id) DO NOTHING`
+        for (let start = 0; start < decisions.length; start += 20) {
+          const rows = decisions.slice(start, start + 20).map((decision) => ({
+            change_id: decision.changeId,
+            invoice_id: decision.invoiceId,
+            outcome: decision.outcome,
+            run_id: decision.runId,
+            decided_at: decidedAt,
+          }))
+          yield* sql`INSERT INTO trigger_decisions ${sql.insert(rows)} ON CONFLICT (change_id) DO NOTHING`
         }
       })
 
       /**
-       * Atomically claims the invoice's single payment link. Only the caller that
-       * gets `true` may call Stripe. One statement, because D1 has no transactions.
+       * Atomically claims the invoice's single payment link, but only while the invoice
+       * is still overdue *now*: the run decided from a snapshot that may be stale (e.g.
+       * paid in the meantime). Only the caller that gets `true` may call Stripe. One
+       * statement, because D1 has no interactive transactions.
        */
       const claimLink = Effect.fn("TriggerStore.claimLink")(function* (claim: {
         readonly invoiceId: number
@@ -155,8 +164,9 @@ export class TriggerStore extends Context.Service<TriggerStore>()(
           execute: () =>
             sql`INSERT INTO payment_links
                   (invoice_id, trigger_change_id, idempotency_key, params_json, state, claimed_at)
-                VALUES (${claim.invoiceId}, ${claim.triggerChangeId}, ${claim.idempotencyKey},
-                        ${params}, 'pending', ${claim.claimedAt})
+                SELECT ${claim.invoiceId}, ${claim.triggerChangeId}, ${claim.idempotencyKey},
+                       ${params}, 'pending', ${claim.claimedAt}
+                WHERE EXISTS (SELECT 1 FROM invoices WHERE id = ${claim.invoiceId} AND status = 'overdue')
                 ON CONFLICT (invoice_id) DO NOTHING
                 RETURNING invoice_id`,
         })(undefined)
@@ -175,6 +185,7 @@ export class TriggerStore extends Context.Service<TriggerStore>()(
           execute: () =>
             sql`UPDATE payment_links SET claimed_at = ${claimedAt}
                 WHERE invoice_id = ${invoiceId} AND state = 'pending' AND claimed_at < ${staleBefore}
+                  AND EXISTS (SELECT 1 FROM invoices WHERE id = ${invoiceId} AND status = 'overdue')
                 RETURNING invoice_id`,
         })(undefined)
         return rows.length === 1
@@ -188,10 +199,16 @@ export class TriggerStore extends Context.Service<TriggerStore>()(
           Effect.withSpan("TriggerStore.releaseClaim"),
         )
 
-      const completeLink = (invoiceId: number, link: CreatedPaymentLink, createdAt: string) =>
+      const completeLink = (
+        invoiceId: number,
+        link: CreatedPaymentLink,
+        createdAt: string,
+        runId: number,
+      ) =>
         sql`UPDATE payment_links
             SET state = 'created', url = ${link.url},
-                stripe_payment_link_id = ${link.stripePaymentLinkId}, created_at = ${createdAt}
+                stripe_payment_link_id = ${link.stripePaymentLinkId}, created_at = ${createdAt},
+                created_by_run_id = ${runId}
             WHERE invoice_id = ${invoiceId}`.pipe(
           Effect.asVoid,
           Effect.withSpan("TriggerStore.completeLink"),

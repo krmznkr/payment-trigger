@@ -101,6 +101,8 @@ export const outcomeLabel: Record<Outcome, string> = {
   inconsistent: "inconsistent data, will retry",
   routing_failed: "routing failed, will retry",
   customer_missing: "customer missing, will retry",
+  invalid_params: "invalid payment input, will retry",
   stub_failed: "Stripe call failed, will retry",
   in_progress: "another run holds the claim",
+  changed_during_run: "changed during the run, re-evaluated next run",
 }

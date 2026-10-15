@@ -80,15 +80,25 @@ export const resolveSettlement = (
   return Result.succeed(new Settlement({ park, legalEntity, bankAccount }))
 }
 
-/** Exactly the input of `createStripePaymentLink` from the brief's stub spec. */
+/**
+ * Exactly the input of `createStripePaymentLink` from the brief's stub spec, with
+ * the checks we can make before money is involved: a positive amount, an ISO
+ * currency code and a plausible email. Anything else never reaches Stripe.
+ */
 export class PaymentLinkParams extends Schema.Class<PaymentLinkParams>("PaymentLinkParams")({
   invoiceId: Schema.Int,
-  amountCents: Schema.Int,
-  currency: Schema.String,
-  customerEmail: Schema.String,
+  amountCents: Schema.Int.check(Schema.isGreaterThan(0)),
+  currency: Schema.String.check(Schema.isPattern(/^[A-Z]{3}$/)),
+  customerEmail: Schema.String.check(Schema.isPattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)),
   stripeCustomerId: Schema.NullOr(Schema.String),
   settlementBankAccountId: Schema.Int,
 }) {}
+
+/** The invoice or customer data cannot form a valid payment request. Fixed upstream, then retried. */
+export class InvalidPaymentLinkParams extends Schema.TaggedError<InvalidPaymentLinkParams>()(
+  "InvalidPaymentLinkParams",
+  { invoiceId: Schema.Int, message: Schema.String },
+) {}
 
 /**
  * A missing Stripe customer id is passed through as null: the hosted checkout
@@ -98,15 +108,19 @@ export const paymentLinkParams = (
   invoice: Invoice,
   customer: Customer,
   settlement: Settlement,
-): PaymentLinkParams =>
-  new PaymentLinkParams({
+): Result.Result<PaymentLinkParams, InvalidPaymentLinkParams> =>
+  Schema.decodeUnknownResult(PaymentLinkParams)({
     invoiceId: invoice.id,
     amountCents: invoice.amountCents,
     currency: invoice.currency,
     customerEmail: customer.email,
     stripeCustomerId: customer.stripeCustomerId,
     settlementBankAccountId: settlement.bankAccount.id,
-  })
+  }).pipe(
+    Result.mapError(
+      (issue) => new InvalidPaymentLinkParams({ invoiceId: invoice.id, message: issue.message }),
+    ),
+  )
 
 export const RoutingResult = Schema.Union([Settlement, RoutingError])
 export type RoutingResult = typeof RoutingResult.Type

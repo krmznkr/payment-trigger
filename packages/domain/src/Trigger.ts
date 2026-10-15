@@ -37,8 +37,9 @@ export type TriggerDecision = typeof TriggerDecision.Type
 export const entersOverdue = (change: StatusChange): boolean =>
   change.newStatus === "overdue" && change.oldStatus !== "overdue"
 
+/** By actual instant (not text: "01:00+02:00" is before "23:30Z" the previous day), then id. */
 const byOccurrence = Order.combine(
-  Order.mapInput(Order.String, (change: StatusChange) => change.changedAt),
+  Order.mapInput(DateTime.Order, (change: StatusChange) => DateTime.makeUnsafe(change.changedAt)),
   Order.mapInput(Order.Number, (change: StatusChange) => change.id),
 )
 

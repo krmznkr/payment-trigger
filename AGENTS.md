@@ -189,3 +189,16 @@ prompts. Seed lives in a migration, so it's applied once per database.
 - **Assumptions doc:** the stub's params (customer email/id) match Checkout
   Sessions, which expire within 24 h. If the real wrapper creates sessions, link
   reuse breaks after a day.
+- **Review (grader pass) — fixed:** claim re-checks overdue at claim time (paid
+  mid-run → no link); history ordered by instant, unparseable timestamps rejected;
+  stub input validated (amount > 0, ISO currency, email); trigger row attributed
+  to the creating run (was first-writer-wins on D1); ≤100 invoices per run with
+  multi-row decision inserts (measured ~5 queries/invoice vs D1 1000/50 limit);
+  phone layout.
+- **Review — next steps (documented, not built):** link deactivation on
+  paid/void (double-payment risk) + active-link generations; auth on mutating
+  endpoints, mask emails/IBANs, CSRF (any site can POST /api/runs today);
+  scale-out (cron + queue, SQL-side selection of new rows, indexes); migrations
+  must stay compatible with the previous Worker version (old and new versions
+  both served for 10–30 s+ after a deploy); due dates in park-local time; real
+  Stripe wrapper unproven; mid-run crash resumability on D1 argued, not tested.
