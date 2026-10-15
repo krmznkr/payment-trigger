@@ -1,0 +1,11 @@
+{
+  "name": "@payment-trigger/domain",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "effect": "4.0.5"
+  }
+}

@@ -2,3 +2,8 @@
 .env.*
 brief.pdf
 .alchemy/
+node_modules
+dist
+*.tsbuildinfo
+test-results
+playwright-report

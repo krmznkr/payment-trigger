@@ -1,0 +1,31 @@
+{
+  "name": "payment-trigger",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "type": "module",
+  "scripts": {
+    "check": "oxfmt --check && oxlint --deny-warnings && bun run typecheck",
+    "fmt": "oxfmt",
+    "lint": "oxlint",
+    "typecheck": "tsc -p packages/domain && tsc -p apps/api && tsc -p apps/web",
+    "test": "vitest run",
+    "dev": "alchemy dev --stage local",
+    "deploy": "alchemy deploy --stage demo",
+    "destroy": "alchemy destroy --stage demo"
+  },
+  "devDependencies": {
+    "@effect/platform-bun": "4.0.5",
+    "@effect/platform-node": "4.0.5",
+    "@effect/vitest": "4.0.5",
+    "@types/node": "^26.6.5",
+    "alchemy": "2.0.0-beta.83",
+    "effect": "4.0.5",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5"
+  }
+}
