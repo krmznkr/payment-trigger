@@ -82,6 +82,8 @@ for all parsing (no manual predicates); `DateTime` instead of `Date`;
 ```sh
 bun run check            # oxfmt --check, oxlint --deny-warnings, tsc per package
 bun run test             # vitest
+E2E_BASE_URL=<url> bun run e2e   # Playwright against a deployed stage
+node docs/build-pdf.mjs  # docs/assumptions.pdf from assumptions + design note + next steps
 set -a; . <main checkout>/.env; set +a; CI=true bunx alchemy deploy --stage demo --yes
 ```
 
