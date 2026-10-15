@@ -1,6 +1,7 @@
 import type { ReactNode } from "react"
 import type { InvoiceView } from "@payment-trigger/domain/Run"
-import { explainDecision, explainRoutingError, outcomeLabel, type Tone } from "./explain.ts"
+import { MarkOverdueButton } from "./DemoControls.tsx"
+import { explainInvoice, explainRoutingError, outcomeLabel, type Tone } from "./explain.ts"
 import { formatInstant, invoiceAmount } from "./format.ts"
 
 const toneStyles: Record<Tone, string> = {
@@ -90,7 +91,7 @@ function Link({ view }: { readonly view: InvoiceView }) {
 
 export function InvoiceCard({ view }: { readonly view: InvoiceView }) {
   const { invoice, customer } = view
-  const verdict = explainDecision(view.decision, invoice)
+  const verdict = explainInvoice(view)
   return (
     <article
       aria-labelledby={`invoice-${invoice.id}`}
@@ -114,6 +115,7 @@ export function InvoiceCard({ view }: { readonly view: InvoiceView }) {
             <> · Stripe customer: {customer.stripeCustomerId ?? <em>none yet</em>}</>
           )}
         </span>
+        {invoice.status === "open" && <MarkOverdueButton invoiceId={invoice.id} />}
       </header>
 
       <div

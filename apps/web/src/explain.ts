@@ -1,5 +1,5 @@
 import type { RoutingError } from "@payment-trigger/domain/Routing"
-import type { Outcome } from "@payment-trigger/domain/Run"
+import type { InvoiceView, Outcome } from "@payment-trigger/domain/Run"
 import type { TriggerDecision } from "@payment-trigger/domain/Trigger"
 import type { Invoice } from "@payment-trigger/domain/Models"
 import { formatInstant } from "./format.ts"
@@ -60,6 +60,23 @@ export const explainDecision = (decision: TriggerDecision, invoice: Invoice): Ve
         headline: "No link: not due yet",
         reason: `Open and due ${invoice.dueDate}.`,
       }
+  }
+}
+
+/** A trigger that cannot be routed is blocked, not "qualifying": say so in the verdict itself. */
+export const explainInvoice = (view: InvoiceView): Verdict => {
+  const verdict = explainDecision(view.decision, view.invoice)
+  if (
+    view.decision._tag !== "Triggered" ||
+    view.routing._tag === "Settlement" ||
+    view.link !== null
+  ) {
+    return verdict
+  }
+  return {
+    tone: "flag",
+    headline: "Qualifies, but blocked: the money cannot be routed",
+    reason: `${verdict.reason} ${explainRoutingError(view.routing)} No link is created; the change stays unhandled and is retried on every run.`,
   }
 }
 

@@ -1,6 +1,11 @@
-import type { RunSummary, StubCall } from "@payment-trigger/domain/Run"
+import type { InvoiceOutcome, RunSummary, StubCall } from "@payment-trigger/domain/Run"
 import { outcomeLabel } from "./explain.ts"
 import { formatInstant } from "./format.ts"
+
+const describeOutcome = (outcome: InvoiceOutcome) =>
+  outcome.outcome === "routing_failed" || outcome.outcome === "stub_failed"
+    ? `${outcome.invoiceId}: ${outcomeLabel[outcome.outcome]} (${outcome.detail})`
+    : `${outcome.invoiceId}: ${outcomeLabel[outcome.outcome]}`
 
 export function RunLog({ runs }: { readonly runs: ReadonlyArray<RunSummary> }) {
   if (runs.length === 0) return <p className="text-sm text-stone-600">No runs yet.</p>
@@ -13,7 +18,7 @@ export function RunLog({ runs }: { readonly runs: ReadonlyArray<RunSummary> }) {
           new status change{run.newChanges === 1 ? "" : "s"}
           {run.outcomes.length === 0
             ? " · nothing to do"
-            : ` · ${run.outcomes.map((outcome) => `${outcome.invoiceId}: ${outcomeLabel[outcome.outcome]}`).join(", ")}`}
+            : ` · ${run.outcomes.map(describeOutcome).join(", ")}`}
         </li>
       ))}
     </ul>

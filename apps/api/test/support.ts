@@ -4,6 +4,8 @@ import { SqlClient } from "effect/sql"
 import { TestClock } from "effect/testing"
 import { readdirSync, readFileSync } from "node:fs"
 import { join } from "node:path"
+import { Demo } from "../src/Demo.ts"
+import { sqlStatements } from "../src/SqlScript.ts"
 import { StripePaymentLinks } from "../src/StripePaymentLinks.ts"
 import { TriggerRun } from "../src/TriggerRun.ts"
 import { TriggerStore } from "../src/TriggerStore.ts"
@@ -16,12 +18,9 @@ const migrate = Effect.gen(function* () {
   for (const file of readdirSync(migrationsDir)
     .filter((name) => name.endsWith(".sql"))
     .sort()) {
-    const statements = readFileSync(join(migrationsDir, file), "utf8")
-      .replace(/--.*$/gm, "")
-      .split(";")
-      .map((statement) => statement.trim())
-      .filter((statement) => statement.length > 0)
-    for (const statement of statements) yield* sql.unsafe(statement)
+    for (const statement of sqlStatements(readFileSync(join(migrationsDir, file), "utf8"))) {
+      yield* sql.unsafe(statement)
+    }
   }
 })
 
@@ -36,7 +35,7 @@ export const Database = Layer.effectDiscard(migrate).pipe(
 export const triggerLayer = (
   stripe: Layer.Layer<StripePaymentLinks, never, TriggerStore> = StripePaymentLinks.mock,
 ) =>
-  TriggerRun.layer.pipe(
+  Layer.mergeAll(TriggerRun.layer, Demo.layer).pipe(
     Layer.provideMerge(stripe),
     Layer.provideMerge(TriggerStore.layer),
     Layer.provideMerge(Database),

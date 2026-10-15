@@ -14,3 +14,8 @@ const triggerData = ["trigger-data"]
 export const overviewAtom = ApiClient.query("trigger", "overview", { reactivityKeys: triggerData })
 export const runAtom = ApiClient.mutation("trigger", "run")
 export const runRequest = { reactivityKeys: triggerData }
+
+export const markOverdueAtom = ApiClient.mutation("demo", "markOverdue")
+export const routingScenarioAtom = ApiClient.mutation("demo", "setRoutingScenario")
+export const resetAtom = ApiClient.mutation("demo", "reset")
+export const demoReactivity = { reactivityKeys: triggerData }

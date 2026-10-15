@@ -2,6 +2,7 @@ import { useAtom, useAtomValue } from "@effect/atom-react"
 import { AsyncResult } from "effect/reactivity"
 import { RunLog, StubCallLog } from "./Activity.tsx"
 import { overviewAtom, runAtom, runRequest } from "./ApiClient.ts"
+import { DemoControls } from "./DemoControls.tsx"
 import { formatInstant } from "./format.ts"
 import { InvoiceCard } from "./InvoiceCard.tsx"
 
@@ -54,6 +55,7 @@ export function App() {
         ))
         .onSuccess((data) => (
           <>
+            <DemoControls invoices={data.invoices} />
             <section aria-labelledby="runs" className="space-y-2">
               <h2 id="runs" className="text-lg font-semibold">
                 Runs{" "}

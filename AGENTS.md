@@ -125,22 +125,27 @@ prompts. Seed lives in a migration, so it's applied once per database.
 - Every entity has exactly one EUR account in the seed, but the schema allows
   many per entity. Hence the currency match and the ambiguity error.
 
-## Stripe facts (docs.stripe.com, checked)
+## Stripe facts (docs.stripe.com, checked twice)
 
-- `POST /v1/payment_links` has **no `customer` / `customer_email`**. It has
-  `customer_creation` (`always` | `if_required`). Checkout Sessions take
-  `customer` / `customer_email` but expire within 30 min–24 h. The stub's
-  params look like a Checkout Session; document this.
-- Payment links are reusable. Limit them with
-  `restrictions.completed_sessions.limit`. Deactivate with `active: false`. They
-  have no expiry.
-- `Idempotency-Key` header. Keys can be pruned after ≥24h. Reusing a key with
-  different params errors. So the long-term duplicate guard must be our DB.
-- `metadata` is copied to checkout sessions. `payment_intent_data.metadata`
-  carries the invoice id to the PaymentIntent.
-- Connect: `on_behalf_of`, `transfer_data.destination` route funds to a
-  connected account. A settlement bank account likely maps to a per-entity
-  Stripe account. This is an assumption.
+- Payment Links: no `customer`/`customer_email` on create (Checkout Sessions have
+  them, but sessions expire 30 min–24 h). No expiry field on the PaymentLink
+  object. `active: false` shows customers a "deactivated" page
+  (`inactive_message`). No delete documented. `line_items` are updatable.
+  `restrictions.completed_sessions.limit` exists, but the docs don't say what
+  happens when the limit is reached. `metadata` is copied to checkout sessions.
+  The docs read don't state an email-prefill URL param;
+  `client_reference_id` is a URL param (≤200 chars).
+- Idempotency (`Idempotency-Key`, ≤255 chars, POST only): kept ≥24 h, then may
+  be pruned, and a reused pruned key creates a NEW object. Same key + different
+  params → error. Concurrent same key → 409, retry with the same key and params.
+  Results are stored once execution starts, **including 400s and 500s**, and
+  replayed (`Idempotent-Replayed: true`). Not stored: validation failures and
+  409 conflicts.
+- Consequences for us: the DB uniqueness is the long-term guard (Stripe's is ≥24 h).
+  Retry with the same key only helps for timeouts and 409s. A stored 500 replays,
+  so the real wrapper must classify errors and reconcile (find the link by
+  metadata) before rotating to a new key. The claim lease (2 min) must exceed
+  the HTTP timeout, or a slow call can overlap a takeover.
 - Webhooks: duplicates happen, ordering is not guaranteed, retries go on for up
   to 3 days. Dedupe by event id.
 
