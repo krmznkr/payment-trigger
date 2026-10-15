@@ -25,7 +25,9 @@ export class DemoGroup extends HttpApiGroup.make("demo")
   .prefix("/api/demo") {}
 
 export class SystemGroup extends HttpApiGroup.make("system").add(
-  HttpApiEndpoint.get("health", "/api/health", { success: Schema.Struct({ ok: Schema.Boolean }) }),
+  HttpApiEndpoint.get("health", "/api/health", {
+    success: Schema.Struct({ ok: Schema.Boolean, version: Schema.String }),
+  }),
 ) {}
 
 export class Api extends HttpApi.make("payment-trigger")

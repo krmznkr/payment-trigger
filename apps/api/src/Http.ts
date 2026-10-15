@@ -1,5 +1,5 @@
 import { Api } from "@payment-trigger/domain/Api"
-import { Effect, Layer } from "effect"
+import { Config, Effect, Layer } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { Demo } from "./Demo.ts"
 import { StripePaymentLinks } from "./StripePaymentLinks.ts"
@@ -29,8 +29,16 @@ const DemoHandlers = HttpApiBuilder.group(
   }),
 )
 
-const SystemHandlers = HttpApiBuilder.group(Api, "system", (handlers) =>
-  handlers.handle("health", () => Effect.succeed({ ok: true })),
+/** The deployed commit, so CI can wait until the build it tests is the one serving. */
+const buildVersion = Config.String("BUILD_VERSION").pipe(Config.withDefault("dev"))
+
+const SystemHandlers = HttpApiBuilder.group(
+  Api,
+  "system",
+  Effect.fn(function* (handlers) {
+    const version = yield* buildVersion
+    return handlers.handle("health", () => Effect.succeed({ ok: true, version }))
+  }),
 )
 
 export const ServicesLayer = Layer.mergeAll(TriggerRun.layer, Demo.layer).pipe(

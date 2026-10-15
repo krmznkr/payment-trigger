@@ -1,10 +1,11 @@
 import { D1Client } from "@effect/sql-d1"
-import { Layer, String } from "effect"
+import { ConfigProvider, Layer, String } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { ApiLayer } from "./Http.ts"
 
 export interface Env {
   readonly DB: D1Database
+  readonly BUILD_VERSION?: string
 }
 
 type WebHandler = ReturnType<typeof makeWebHandler>
@@ -14,6 +15,7 @@ const makeWebHandler = (env: Env) =>
     ApiLayer.pipe(
       Layer.provide(D1Client.layer({ db: env.DB, transformResultNames: String.snakeToCamel })),
       Layer.provide(HttpServer.layerServices),
+      Layer.provide(ConfigProvider.layer(ConfigProvider.fromUnknown(env))),
     ),
   )
 

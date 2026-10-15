@@ -170,3 +170,22 @@ prompts. Seed lives in a migration, so it's applied once per database.
   out on a background tab.
 - `gh`: `set -a; . <main checkout>/.env; set +a` first (GH_TOKEN). Pipe output
   through `sed` to mask the repo owner; never print the token.
+
+## For the docs (queued, user-confirmed)
+
+- **Next step #1 (documented, NOT built): "at most one active link per invoice".**
+  Add `generation` to `payment_links`, enforce uniqueness only for active links
+  (pending/created) with a partial unique index, keep deactivated rows as
+  history, and use key `payment-link:invoice:<id>:<generation>`. On re-trigger,
+  reuse the active link, else claim generation n+1. Needed once links get
+  deactivated (on paid/void, by ops, or after an amount change). Today a
+  deactivated link would be reported "already linked" forever.
+- **Assumptions doc:** Stripe replays stored 500/400 responses for the same key,
+  so same-key retry only helps after timeouts or 409s. The real wrapper must
+  classify errors and reconcile (find the link by metadata) before rotating keys.
+- **Assumptions doc:** the claim lease (2 min) must exceed the Stripe call
+  timeout, or a slow call overlaps a takeover and two calls race. Within 24 h
+  the shared key makes Stripe return one link; after pruning it would not.
+- **Assumptions doc:** the stub's params (customer email/id) match Checkout
+  Sessions, which expire within 24 h. If the real wrapper creates sessions, link
+  reuse breaks after a day.

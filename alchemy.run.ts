@@ -15,7 +15,7 @@ export default Alchemy.Stack(
     const app = yield* Cloudflare.Website.Vite("App", {
       rootDir: "apps/web",
       main: "worker.ts",
-      env: { DB: db },
+      env: { DB: db, BUILD_VERSION: process.env.BUILD_VERSION ?? "local" },
       assets: { runWorkerFirst: ["/api/*"], notFoundHandling: "single-page-application" },
       memo: { include: ["**/*", "../api/src/**", "../../packages/domain/src/**"], lockfile: true },
     })
